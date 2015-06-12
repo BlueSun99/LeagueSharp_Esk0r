@@ -31,7 +31,7 @@ namespace Xerath
         //Menu
         public static Menu Config;
 
-        private static Obj_AI_Hero Player;
+        private static Obj_AI_Hero Player { get { return ObjectManager.Player; } }
 
         private static Vector2 PingLocation;
         private static int LastPingT = 0;
@@ -54,14 +54,14 @@ namespace Xerath
 
         public static bool IsPassiveUp
         {
-            get { return ObjectManager.Player.HasBuff("xerathascended2onhit", true); }
+            get { return Player.HasBuff("xerathascended2onhit", true); }
         }
 
         public static bool IsCastingR
         {
             get
             {
-                return ObjectManager.Player.HasBuff("XerathLocusOfPower2", true) ||
+                return Player.HasBuff("XerathLocusOfPower2", true) ||
                        (ObjectManager.Player.LastCastedSpellName() == "XerathLocusOfPower2" &&
                         Utils.TickCount - ObjectManager.Player.LastCastedSpellT() < 500);
             }
@@ -82,8 +82,6 @@ namespace Xerath
 
         private static void Game_OnGameLoad(EventArgs args)
         {
-            Player = ObjectManager.Player;
-
             if (Player.ChampionName != ChampionName) return;
 
             //Create the spells
@@ -236,7 +234,7 @@ namespace Xerath
         {
             if (!Config.Item("InterruptSpells").GetValue<bool>()) return;
                   
-            if (Player.Distance(sender) < E.Range)
+            if (Player.Distance(sender.Position) < E.Range)
             {
                 E.Cast(sender);
             }
@@ -259,7 +257,7 @@ namespace Xerath
         {
             if (!Config.Item("AutoEGC").GetValue<bool>()) return;
 
-            if (Player.Distance(gapcloser.Sender) < E.Range)
+            if (Player.Distance(gapcloser.Sender.Position) < E.Range)
             {
                 E.Cast(gapcloser.Sender);
             }
@@ -315,7 +313,7 @@ namespace Xerath
 
             if (eTarget != null && useE && E.IsReady())
             {
-                if (Player.Distance(eTarget) < E.Range * 0.4f)
+                if (Player.Distance(eTarget.Position) < E.Range * 0.4f)
                     E.Cast(eTarget);
                 else if ((!useW || !W.IsReady()))
                     E.Cast(eTarget);
@@ -325,9 +323,10 @@ namespace Xerath
             {
                 if (Q.IsCharging)
                 {
-                    Q.Cast(qTarget, false, false);
+                    if (Player.Distance(qTarget, false) + 20 > Q.ChargedMaxRange ? Q.ChargedMaxRange <= Q.Range : Player.Distance(qTarget, false) + 20 <= Q.Range)
+                        Q.Cast(qTarget, false, false);
                 }
-                else if (!useW || !W.IsReady() || Player.Distance(qTarget) > W.Range)
+                else if (!useW || !W.IsReady() || Player.Distance(qTarget.Position) > W.Range)
                 {
                     Q.StartCharging();
                 }
@@ -343,7 +342,7 @@ namespace Xerath
             var bestRatio = 0f;
 
             if (TargetSelector.SelectedTarget.IsValidTarget() && !TargetSelector.IsInvulnerable(TargetSelector.SelectedTarget, TargetSelector.DamageType.Magical, true) &&
-                (Game.CursorPos.Distance(TargetSelector.SelectedTarget.ServerPosition) < distance && ObjectManager.Player.Distance(TargetSelector.SelectedTarget) < R.Range))
+                (Game.CursorPos.Distance(TargetSelector.SelectedTarget.ServerPosition) < distance && ObjectManager.Player.Distance(TargetSelector.SelectedTarget.Position) < R.Range))
             {
                 return TargetSelector.SelectedTarget;
             }
@@ -443,7 +442,7 @@ namespace Xerath
                 if (Q.IsCharging)
                 {
                     var locQ = Q.GetLineFarmLocation(allMinionsQ);
-                    if (allMinionsQ.Count == allMinionsQ.Count(m => Player.Distance(m) < Q.Range) && locQ.MinionsHit > 0 && locQ.Position.IsValid())
+                    if (allMinionsQ.Count == allMinionsQ.Count(m => Player.Distance(m.Position) < Q.Range) && locQ.MinionsHit > 0 && locQ.Position.IsValid())
                         Q.Cast(locQ.Position);
                 }
                 else if (allMinionsQ.Count > 0)
