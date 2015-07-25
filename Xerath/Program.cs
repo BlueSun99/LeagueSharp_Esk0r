@@ -328,7 +328,7 @@ namespace Xerath
                 }
                 else if (!useW || !W.IsReady() || Player.Distance(qTarget.Position) > W.Range)
                 {
-                    Q.StartCharging();
+                    Q.StartCharging(qTarget.Position);
                 }
             }
 
@@ -446,7 +446,7 @@ namespace Xerath
                         Q.Cast(locQ.Position);
                 }
                 else if (allMinionsQ.Count > 0)
-                    Q.StartCharging();
+                    Q.StartCharging(locQ.Position);
             }
         }
 
