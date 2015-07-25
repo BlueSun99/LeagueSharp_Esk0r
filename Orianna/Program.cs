@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -130,7 +130,7 @@ namespace Orianna
             Config.SubMenu("Misc").AddItem(new MenuItem("AutoR", "Auto R if it'll hit").SetValue(new StringList(new string[] { "No", ">=1 target", ">=2 target", ">=3 target", ">=4 target", ">=5 target" }, 3)));
             Config.SubMenu("Misc").AddItem(new MenuItem("AutoEInitiators", "Auto E initiators").SetValue(true));
 
-            ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsAlly && !h.IsMe).ForEach(
+            HeroManager.Allies.ForEach(
                 delegate(Obj_AI_Hero hero)
                 {
                     InitiatorsList.ToList().ForEach(
@@ -229,6 +229,21 @@ namespace Orianna
                     new MenuItem("QOnBallRange", "Draw ball position").SetValue(new Circle(true, Color.FromArgb(150, Color.DodgerBlue))));
             Config.SubMenu("Drawings")
                 .AddItem(dmgAfterComboItem);
+            Config.SubMenu("Drawings")
+                .AddItem(
+                    new MenuItem("HarassActiveTPermashow", "Show harass permashow").SetValue(true)).ValueChanged += (s, ar) =>
+                    {
+                        if (ar.GetNewValue<bool>())
+                        {
+                            Config.Item("HarassActiveT").Permashow(true, "HarassActive");
+                        }
+                        else
+                        {
+                            Config.Item("HarassActiveT").Permashow(false);
+                        }
+                    };
+
+            Config.Item("HarassActiveT").Permashow(Config.Item("HarassActiveTPermashow").GetValue<bool>(), "HarassActive");
             #endregion
 
             Config.AddToMainMenu();
@@ -237,9 +252,36 @@ namespace Orianna
             Game.OnUpdate += Game_OnGameUpdate;
             Drawing.OnDraw += Drawing_OnDraw;
             Spellbook.OnCastSpell += Spellbook_OnCastSpell;
-            Interrupter.OnPossibleToInterrupt += Interrupter_OnPossibleToInterrupt;
+            Interrupter2.OnInterruptableTarget += Interrupter2_OnInterruptableTarget;
             
             Notifications.AddNotification("Orianna Loaded", 4000);
+        }
+
+        static void Interrupter2_OnInterruptableTarget(Obj_AI_Hero sender, Interrupter2.InterruptableTargetEventArgs args)
+        {
+            if (!Config.Item("InterruptSpells").GetValue<bool>())
+            {
+                return;
+            }
+
+            if (args.DangerLevel <= Interrupter2.DangerLevel.Medium)
+            {
+                return;
+            }
+
+            if (sender.IsAlly)
+            {
+                return;
+            }
+
+            if (RIsReady)
+            {
+                Q.Cast(sender, true);
+                if (BallManager.BallPosition.Distance(sender.ServerPosition, true) < R.Range * R.Range)
+                {
+                    R.Cast(Player.ServerPosition, true);
+                }
+            }
         }
 
         static void Obj_AI_Hero_OnProcessSpellCast(Obj_AI_Base sender, GameObjectProcessSpellCastEventArgs args)
@@ -287,28 +329,6 @@ namespace Orianna
             if (args.Slot == SpellSlot.R && GetHits(R).Item1 == 0)
             {
                 args.Process = false;
-            }
-        }
-
-        static void Interrupter_OnPossibleToInterrupt(Obj_AI_Base unit, InterruptableSpell spell)
-        {
-            if (!Config.Item("InterruptSpells").GetValue<bool>())
-            {
-                return;
-            }
-
-            if (spell.DangerLevel <= InterruptableDangerLevel.Medium)
-            {
-                return;
-            }
-
-            if (RIsReady)
-            {
-                Q.Cast(unit, true);
-                if (BallManager.BallPosition.Distance(unit.ServerPosition, true) < R.Range * R.Range)
-                {
-                    R.Cast(Player.ServerPosition, true);
-                }
             }
         }
 
@@ -408,8 +428,8 @@ namespace Orianna
                 }
                 else if (useE && EIsReady && (!WIsReady || !useW))
                 {
-                    var closestAlly = ObjectManager.Get<Obj_AI_Hero>()
-                        .Where(h =>  h.IsValidTarget(E.Range, false) && h.IsAlly)
+                    var closestAlly = HeroManager.Allies
+                        .Where(h =>  h.IsValidTarget(E.Range, false))
                         .MinOrDefault(h => h.Distance(mob));
                     if (closestAlly != null)
                     {
@@ -423,27 +443,31 @@ namespace Orianna
         {
             var points = new List<Vector2>();
             var qPrediction = Q.GetPrediction(mainTarget);
-            if (qPrediction.Hitchance < HitChance.High)
+            if (qPrediction.Hitchance < HitChance.VeryHigh)
             {
                 return new Tuple<int, Vector3>(1, Vector3.Zero);
             }
             points.Add(qPrediction.UnitPosition.To2D());
 
-            foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsValidTarget(Q.Range + R.Range)))
+            foreach (var enemy in HeroManager.Enemies.Where(h => h.IsValidTarget(Q.Range + R.Range)))
             {
-                points.Add(Q.GetPrediction(enemy).UnitPosition.To2D());
+                var prediction = Q.GetPrediction(enemy);
+                if (prediction.Hitchance >= HitChance.High)
+                {
+                   points.Add(prediction.UnitPosition.To2D()); 
+                }
             }
 
             for (int j = 0; j < 5; j++)
             {
                 var mecResult = MEC.GetMec(points);
                 
-                if (mecResult.Radius < R.Range && points.Count >= 3 && RIsReady)
+                if (mecResult.Radius < (R.Range - 75) && points.Count >= 3 && RIsReady)
                 {
                     return new Tuple<int, Vector3>(3, mecResult.Center.To3D());
                 }
 
-                if (mecResult.Radius < W.Range && points.Count >= 2 && WIsReady)
+                if (mecResult.Radius < (W.Range - 75) && points.Count >= 2 && WIsReady)
                 {
                     return new Tuple<int, Vector3>(2, mecResult.Center.To3D());
                 }
@@ -453,7 +477,7 @@ namespace Orianna
                     return new Tuple<int, Vector3>(1, mecResult.Center.To3D());
                 }
 
-                if (mecResult.Radius < (Q.Width + 50) && points.Count == 2)
+                if (mecResult.Radius < Q.Width && points.Count == 2)
                 {
                     return new Tuple<int, Vector3>(2, mecResult.Center.To3D());
                 }
@@ -509,7 +533,7 @@ namespace Orianna
 
                 if(useE)
                 {
-                    foreach (var ally in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsValidTarget(E.Range, false) && h.IsAlly && !h.IsMe))
+                    foreach (var ally in HeroManager.Allies.Where(h => h.IsValidTarget(E.Range, false)))
                     {
                         if (ally.Position.CountEnemiesInRange(300) >= 1)
                         {
@@ -586,7 +610,7 @@ namespace Orianna
                         CastE(Player, 2);
                     }
 
-                    foreach (var ally in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsValidTarget(E.Range, false) && h.IsAlly))
+                    foreach (var ally in HeroManager.Allies.Where(h => h.IsValidTarget(E.Range, false)))
                     {
                         if (ally.Position.CountEnemiesInRange(300) >= 2)
                         {
@@ -701,7 +725,7 @@ namespace Orianna
         {
             var hits = new List<Obj_AI_Hero>();
             var range = spell.Range * spell.Range;
-            foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsValidTarget() && BallManager.BallPosition.Distance(h.ServerPosition, true) < range))
+            foreach (var enemy in HeroManager.Enemies.Where(h => h.IsValidTarget() && BallManager.BallPosition.Distance(h.ServerPosition, true) < range))
 	        {
                 if (spell.WillHit(enemy, BallManager.BallPosition) && BallManager.BallPosition.Distance(enemy.ServerPosition, true) < spell.Width * spell.Width)
                 {
@@ -716,7 +740,7 @@ namespace Orianna
             var hits = new List<Obj_AI_Hero>();
             var oldERange = E.Range;
             E.Range = 10000; //avoid the range check
-            foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.IsValidTarget(2000)))
+            foreach (var enemy in HeroManager.Enemies.Where(h => h.IsValidTarget(2000)))
             {
                 if (E.WillHit(enemy, to))
                 {
@@ -731,7 +755,7 @@ namespace Orianna
         {
             var qPrediction = Q.GetPrediction(target);
 
-            if(qPrediction.Hitchance < HitChance.High)
+            if(qPrediction.Hitchance < HitChance.VeryHigh)
             {
                 return false;
             }
@@ -743,7 +767,7 @@ namespace Orianna
 
                 Obj_AI_Hero eqTarget = null;
 
-                foreach (var ally in ObjectManager.Get<Obj_AI_Hero>().FindAll(h => h.Team == Player.Team && h.IsValidTarget(E.Range, false)))
+                foreach (var ally in HeroManager.Allies.Where(h => h.IsValidTarget(E.Range, false)))
                 {
                     var t = BallManager.BallPosition.Distance(ally.ServerPosition) / E.Speed + ally.Distance(qPrediction.CastPosition) / Q.Speed;
                     if(t < bestEQTravelTime)
@@ -759,6 +783,7 @@ namespace Orianna
                     return true;
                 }
             }
+
             Q.Cast(qPrediction.CastPosition, true);
             return true;
         }
