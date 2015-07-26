@@ -446,7 +446,7 @@ namespace Xerath
                         Q.Cast(locQ);
                 }
                 else if (allMinionsQ.Count > 0)
-                    Q.StartCharging(locQ.Position);
+                    Q.StartCharging();
             }
         }
 
