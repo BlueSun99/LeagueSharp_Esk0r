@@ -443,7 +443,7 @@ namespace Xerath
                 {
                     var locQ = Q.GetLineFarmLocation(allMinionsQ);
                     if (allMinionsQ.Count == allMinionsQ.Count(m => Player.Distance(m.Position) < Q.Range) && locQ.MinionsHit > 0 && locQ.Position.IsValid())
-                        Q.Cast(locQ);
+                        Q.Cast(locQ.Position);
                 }
                 else if (allMinionsQ.Count > 0)
                     Q.StartCharging();
