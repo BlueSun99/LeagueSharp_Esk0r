@@ -125,9 +125,11 @@ namespace Evade
                     ? overrideWidth
                     : (offset + Radius) / (float) Math.Cos(2 * Math.PI / CircleLineSegmentN));
 
-                for (var i = 1; i <= CircleLineSegmentN; i++)
+                var step = 2 * Math.PI / CircleLineSegmentN;
+                var angle = (double) Radius;
+                for (var i = 0; i <= CircleLineSegmentN; i++)
                 {
-                    var angle = i * 2 * Math.PI / CircleLineSegmentN;
+                    angle += step;
                     var point = new Vector2(
                         Center.X + outRadius * (float) Math.Cos(angle), Center.Y + outRadius * (float) Math.Sin(angle));
                     result.Add(point);
@@ -162,6 +164,11 @@ namespace Evade
             {
                 var p = new IntPoint(point.X, point.Y);
                 return Clipper.PointInPolygon(p, ToClipperPath()) != 1;
+            }
+            public int PointInPolygon(Vector2 point)
+            {
+                var p = new IntPoint(point.X, point.Y);
+                return Clipper.PointInPolygon(p, ToClipperPath());
             }
 
             public void Draw(Color color, int width = 1)
@@ -208,7 +215,6 @@ namespace Evade
             }
         }
 
-
         public class Ring
         {
             public Vector2 Center;
@@ -246,6 +252,71 @@ namespace Evade
                     result.Add(point);
                 }
 
+
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Probably only valid for diana
+        /// </summary>
+        public class Arc
+        {
+            public Vector2 Start { get; private set; }
+            public Vector2 End { get; private set; }
+
+            public int HitBox { get; private set; }
+            private float Distance { get; set; }
+            public Arc(Vector2 start, Vector2 end, int hitbox)
+            {
+                Start = start;
+                End = end;
+                HitBox = hitbox;
+                Distance = Start.Distance(End);
+            }
+
+            public Polygon ToPolygon(int offset = 0)
+            {
+                offset += HitBox;
+                var result = new Polygon();
+
+                var innerRadius = -0.1562f * Distance + 687.31f;
+                var outerRadius = 0.35256f * Distance + 133f;
+
+                outerRadius = outerRadius / (float)Math.Cos(2 * Math.PI / CircleLineSegmentN);
+
+                var innerCenters = LeagueSharp.Common.Geometry.CircleCircleIntersection(Start, End, innerRadius, innerRadius);
+                var outerCenters = LeagueSharp.Common.Geometry.CircleCircleIntersection(Start, End, outerRadius, outerRadius);
+
+                var innerCenter = innerCenters[0];
+                var outerCenter = outerCenters[0];
+
+                Render.Circle.DrawCircle(innerCenter.To3D(), 100, Color.White);
+
+                var direction = (End - outerCenter).Normalized();
+                var end = (Start - outerCenter).Normalized();
+                var maxAngle = (float)(direction.AngleBetween(end) * Math.PI / 180);
+                
+                var step = -maxAngle / CircleLineSegmentN;
+                //outercircle
+                for (int i = 0; i < CircleLineSegmentN; i++)
+                {
+                    var angle = step * i;
+                    var point = outerCenter + (outerRadius + 15 + offset) * direction.Rotated(angle);
+                    result.Add(point);
+                }
+
+                direction = (Start - innerCenter).Normalized();
+                end = (End - innerCenter).Normalized();
+                maxAngle = (float)(direction.AngleBetween(end) * Math.PI / 180);
+                step = maxAngle / CircleLineSegmentN;
+                //outercircle
+                for (int i = 0; i < CircleLineSegmentN; i++)
+                {
+                    var angle = step * i;
+                    var point = innerCenter + Math.Max(0, innerRadius - offset - 100) * direction.Rotated(angle);
+                    result.Add(point);
+                }
 
                 return result;
             }

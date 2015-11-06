@@ -43,6 +43,7 @@ namespace Evade
         public string[] ExtraSpellNames = { };
         public bool FixedRange;
         public bool ForceRemove = false;
+        public bool FollowCaster = false;
         public string FromObject = "";
         public string[] FromObjects = { };
         public int Id = -1;
@@ -55,16 +56,18 @@ namespace Evade
         public int MissileMinSpeed;
         public int MissileSpeed;
         public string MissileSpellName = "";
+        public EarlyObjects[] EarlyEvade;
         public float MultipleAngle;
         public int MultipleNumber = -1;
         public int RingRadius;
         public SpellSlot Slot;
         public string SpellName;
+        public bool TakeClosestPath = false;
         public string ToggleParticleName = "";
         public SkillShotType Type;
         private int _radius;
         private int _range;
-
+        
         public SpellData() { }
 
         public SpellData(string championName,

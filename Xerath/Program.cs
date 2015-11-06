@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -476,10 +476,15 @@ namespace Xerath
 
         private static void Ping(Vector2 position)
         {
-            if (Utils.TickCount - LastPingT < 30 * 1000) return;
+            if (Utils.TickCount - LastPingT < 30 * 1000)
+            {
+                return;
+            }
+            
             LastPingT = Utils.TickCount;
             PingLocation = position;
             SimplePing();
+            
             Utility.DelayAction.Add(150, SimplePing);
             Utility.DelayAction.Add(300, SimplePing);
             Utility.DelayAction.Add(400, SimplePing);
@@ -488,7 +493,7 @@ namespace Xerath
 
         private static void SimplePing()
         {
-            //Packet.S2C.Ping.Encoded(new Packet.S2C.Ping.Struct(PingLocation.X, PingLocation.Y, 0, 0, Packet.PingType.Fallback)).Process();
+            Game.ShowPing(PingCategory.Fallback, PingLocation, true);
         }
 
         private static void Game_OnGameUpdate(EventArgs args)
@@ -512,7 +517,7 @@ namespace Xerath
             Orbwalker.SetMovement(true);
 
             //Update the R range
-            R.Range = 1850 + R.Level * 1050;
+            R.Range = 1200 * R.Level + 2000;
 
             if (IsCastingR)
             {
@@ -553,7 +558,7 @@ namespace Xerath
             if (R.Level == 0) return;
             var menuItem = Config.Item(R.Slot + "RangeM").GetValue<Circle>();
             if (menuItem.Active)
-                Render.Circle.DrawCircle(Player.Position, R.Range, menuItem.Color, 1, true);
+                Utility.DrawCircle(Player.Position, R.Range, menuItem.Color, 1, 23, true);
         }
 
         private static void Drawing_OnDraw(EventArgs args)
