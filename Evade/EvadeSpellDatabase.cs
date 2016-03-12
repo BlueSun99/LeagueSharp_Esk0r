@@ -323,7 +323,7 @@ namespace Evade
 
             if (ObjectManager.Player.ChampionName == "Caitlyn")
             {
-                spell = new DashData("Caitlyn E", SpellSlot.E, 490, true, 250, 1000, 3);
+                spell = new DashData("Caitlyn E", SpellSlot.E, 390, true, 250, 1000, 3);
                 spell.Invert = true;
                 Spells.Add(spell);
             }
@@ -334,7 +334,7 @@ namespace Evade
 
             if (ObjectManager.Player.ChampionName == "Corki")
             {
-                spell = new DashData("Corki W", SpellSlot.W, 790, false, 250, 1044, 3);
+                spell = new DashData("Corki W", SpellSlot.W, 600, false, 250, 1044, 3);
                 Spells.Add(spell);
             }
 
@@ -650,8 +650,8 @@ namespace Evade
 
             #region Champion Shields
 
-            #region Akali
-
+            #region Tahm
+            // add tahm eating here
             #endregion
 
             #region Annie
